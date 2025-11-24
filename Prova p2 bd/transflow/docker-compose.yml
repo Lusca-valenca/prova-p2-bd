@@ -1,0 +1,62 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    container_name: transflow_app
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - mongo
+      - redis
+      - rabbitmq
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - START_CONSUMER=0
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./:/app
+
+  consumer:
+    build: .
+    container_name: transflow_consumer
+    command: python -u -m src.consumer
+    depends_on:
+      - rabbitmq
+      - redis
+      - mongo
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+
+  mongo:
+    image: mongo:6.0
+    container_name: transflow_mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: transflow_redis
+    ports:
+      - '6379:6379'
+    command: ["redis-server"]
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: transflow_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+
+volumes:
+  mongo_data:
